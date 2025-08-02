@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-HTML to Markdown Converter
+Tumblr Archive Export HTML to Markdown Converter
+Created with Claude.ai
 Converts HTML files to Markdown format with custom image paths and date-based filenames.
 """
 
