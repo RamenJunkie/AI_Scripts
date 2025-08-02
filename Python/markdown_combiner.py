@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Combine multiple markdown files from a folder into a single file.
+Created with Claude.ai
 """
 
 import os
