@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Blogger XML to Markdown Converter
+Created using Claude.ai
 
 This script converts Blogger export XML files to individual markdown files.
 It extracts blog entries and converts HTML content to markdown format.
