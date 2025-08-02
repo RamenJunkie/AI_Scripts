@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 4chan Thread Image Downloader
+Created with Claude.ai
 
 Downloads all full-sized images from a 4chan thread to a local directory.
 Usage: python script.py <thread_url>
