@@ -1,3 +1,6 @@
+# An Extremely Inefficient Hello Worls Program
+# Created with Claude.ai
+
 #!/usr/bin/env python3
 import random
 import string
