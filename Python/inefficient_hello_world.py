@@ -1,3 +1,6 @@
+# An Extremely Inefficient Hello World Program
+# Created with Claude.ai
+
 #!/usr/bin/env python3
 import time
 import sys
