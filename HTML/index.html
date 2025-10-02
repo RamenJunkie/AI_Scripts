@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        #content {
+            margin-top: 20px;
+        }
+        .error {
+            background-color: #fee;
+            border: 1px solid #fcc;
+            border-radius: 4px;
+            padding: 15px;
+            color: #c33;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+        code {
+            background-color: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background-color: #f6f8fa;
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        a {
+            color: #0969da;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 16px;
+            margin-left: 0;
+            color: #666;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        table th {
+            background-color: #f6f8fa;
+            font-weight: 600;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css" onerror="this.remove()">
+</head>
+<body>
+    <div id="content">Loading...</div>
+
+    <script>
+        // Get filename from query string or use defaults
+        function getMarkdownFile() {
+            const params = new URLSearchParams(window.location.search);
+            const queryString = window.location.search.substring(1);
+            
+            // If there's a query string, use it as the filename
+            if (queryString && !queryString.includes('=')) {
+                return queryString;
+            }
+            
+            // Otherwise check for explicit file parameter
+            if (params.has('file')) {
+                return params.get('file');
+            }
+            
+            // Default files to try
+            return null;
+        }
+
+        // Convert relative markdown links to use index.html wrapper
+        function rewriteMarkdownLinks(markdown) {
+            // Match markdown links: [text](url)
+            return markdown.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+                // Only rewrite if it's a relative link ending in .md
+                if (url.endsWith('.md') && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
+                    return `[${text}](index.html?${url})`;
+                }
+                return match;
+            });
+        }
+
+        // Load and display markdown file
+        async function loadMarkdown(filename) {
+            const contentDiv = document.getElementById('content');
+            
+            try {
+                const response = await fetch(filename);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load ${filename}: ${response.status} ${response.statusText}`);
+                }
+                
+                let markdown = await response.text();
+                
+                // Rewrite internal markdown links
+                markdown = rewriteMarkdownLinks(markdown);
+                
+                // Convert markdown to HTML
+                const html = marked.parse(markdown);
+                contentDiv.innerHTML = html;
+                
+                // Make external links open in new tab
+                const links = contentDiv.querySelectorAll('a');
+                links.forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href && (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//'))) {
+                        link.setAttribute('target', '_blank');
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    }
+                });
+                
+                // Update page title if there's an h1
+                const h1 = contentDiv.querySelector('h1');
+                if (h1) {
+                    document.title = h1.textContent + ' - Markdown Viewer';
+                }
+                
+            } catch (error) {
+                contentDiv.innerHTML = `
+                    <div class="error">
+                        <h2>Error Loading Markdown File</h2>
+                        <p>${error.message}</p>
+                        <p>Make sure the file exists in the same directory as this HTML file.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Try to load default files
+        async function tryDefaultFiles() {
+            const defaultFiles = ['index.md', 'readme.md', 'README.md'];
+            
+            for (const file of defaultFiles) {
+                try {
+                    const response = await fetch(file, { method: 'HEAD' });
+                    if (response.ok) {
+                        return file;
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+            
+            throw new Error('No default markdown file found. Expected index.md or readme.md');
+        }
+
+        // Initialize
+        async function init() {
+            const requestedFile = getMarkdownFile();
+            
+            if (requestedFile) {
+                await loadMarkdown(requestedFile);
+            } else {
+                try {
+                    const defaultFile = await tryDefaultFiles();
+                    await loadMarkdown(defaultFile);
+                } catch (error) {
+                    document.getElementById('content').innerHTML = `
+                        <div class="error">
+                            <h2>No Markdown File Found</h2>
+                            <p>${error.message}</p>
+                            <p>Please ensure you have either:</p>
+                            <ul>
+                                <li>An <code>index.md</code> or <code>readme.md</code> file in this directory, or</li>
+                                <li>Specify a file: <code>index.html?yourfile.md</code></li>
+                            </ul>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Run on page load
+        init();
+    </script>
+</body>
+</html>
