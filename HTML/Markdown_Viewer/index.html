@@ -104,11 +104,41 @@
         }
 
         // Convert relative markdown links to use index.html wrapper
-        function rewriteMarkdownLinks(markdown) {
+        function rewriteMarkdownLinks(markdown, currentFile = '') {
+            // Get the directory of the current file
+            const currentDir = currentFile.includes('/') 
+                ? currentFile.substring(0, currentFile.lastIndexOf('/') + 1) 
+                : '';
+            
             // Match markdown links: [text](url)
             return markdown.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
                 // Only rewrite if it's a relative link ending in .md
                 if (url.endsWith('.md') && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
+                    // Check if link is to index.md or readme.md (case insensitive)
+                    const filename = url.toLowerCase();
+                    if (filename === 'index.md' || filename === 'readme.md' || 
+                        filename.endsWith('/index.md') || filename.endsWith('/readme.md')) {
+                        return `[${text}](index.html)`;
+                    }
+                    
+                    // If the URL doesn't start with ./ or ../ and doesn't contain /, 
+                    // it's relative to current directory
+                    if (!url.startsWith('./') && !url.startsWith('../') && !url.startsWith('/')) {
+                        url = currentDir + url;
+                    } else if (url.startsWith('./')) {
+                        // Remove ./ and add current directory
+                        url = currentDir + url.substring(2);
+                    } else if (url.startsWith('../')) {
+                        // Handle parent directory references
+                        let path = currentDir;
+                        let relUrl = url;
+                        while (relUrl.startsWith('../')) {
+                            relUrl = relUrl.substring(3);
+                            path = path.substring(0, path.lastIndexOf('/', path.length - 2) + 1);
+                        }
+                        url = path + relUrl;
+                    }
+                    
                     return `[${text}](index.html?${url})`;
                 }
                 return match;
@@ -129,7 +159,7 @@
                 let markdown = await response.text();
                 
                 // Rewrite internal markdown links
-                markdown = rewriteMarkdownLinks(markdown);
+                markdown = rewriteMarkdownLinks(markdown, filename);
                 
                 // Convert markdown to HTML
                 const html = marked.parse(markdown);
