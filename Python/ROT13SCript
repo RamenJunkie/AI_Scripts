@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+# Created using Claude.ai
+
+import sys
+
+def rot13(text):
+"""
+Performs ROT-13 conversion on a string.
+Each letter is shifted 13 positions in the alphabet, wrapping around if necessary.
+Non-alphabetic characters remain unchanged.
+"""
+result = ""
+for char in text:
+if char.isalpha():
+# Determine the ASCII offset based on case (65 for uppercase, 97 for lowercase)
+ascii_offset = 65 if char.isupper() else 97
+# Convert to 0-25 range, shift by 13, and wrap around with modulo 26
+shifted = (ord(char) - ascii_offset + 13) % 26
+# Convert back to ASCII and append to result
+result += chr(shifted + ascii_offset)
+else:
+# Non-alphabetic characters remain unchanged
+result += char
+return result
+
+def main():
+# Check if an argument was provided
+if len(sys.argv) < 2:
+print("Usage: python main.py "string to convert"")
+return
+
+# Get the input string from command line arguments
+# If multiple arguments are provided, join them with spaces
+input_string = " ".join(sys.argv[1:])
+
+# Perform ROT-13 conversion
+result = rot13(input_string)
+
+# Print the result
+print(result)
+
+
+if name == "main":
+main()
