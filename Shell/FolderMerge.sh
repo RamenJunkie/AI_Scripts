@@ -1,4 +1,6 @@
 #!/bin/sh
+
+# A Shell script that will merge folders together into a merged file, creating versions of any conflicts.  Used to merge downloads from Archive.org Scrapes which come out ugly, but useful for other things probably.
 set -eu
 
 # Usage check
