@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suika Game Clone</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        
+        #game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        #info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        #game-canvas {
+            border: 3px solid #333;
+            border-radius: 10px;
+            display: block;
+            background: #f8f9fa;
+        }
+        
+        #controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #instructions {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        #game-over {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        #game-over.show {
+            display: block;
+        }
+        
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 999;
+        }
+        
+        #overlay.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="info">
+            <div>Score: <span id="score">0</span></div>
+            <div>Next: <span id="next-size">?</span></div>
+        </div>
+        <canvas id="game-canvas" width="500" height="700"></canvas>
+        <div id="controls">
+            <button id="reset-btn">Reset Game</button>
+            <button id="custom-graphics-btn">Toggle Custom Graphics</button>
+        </div>
+        <div id="instructions">
+            <strong>How to Play:</strong><br>
+            Click/Tap to drop circles. Match circles of the same size to merge them into larger ones!<br>
+            Don't let them overflow the top line!
+        </div>
+    </div>
+    
+    <div id="overlay"></div>
+    <div id="game-over">
+        <h2>Game Over!</h2>
+        <p>Final Score: <span id="final-score">0</span></p>
+        <button onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const nextSizeEl = document.getElementById('next-size');
+        const gameOverEl = document.getElementById('game-over');
+        const overlayEl = document.getElementById('overlay');
+        const finalScoreEl = document.getElementById('final-score');
+        
+        // Game constants
+        const GRAVITY = 0.5;
+        const FRICTION = 0.98;
+        const BOUNCE = 0.1;
+        const SIZES = [20, 30, 40, 50, 60, 75, 90, 110, 130, 150, 180];
+        const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', 
+                        '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788', '#FF85A2'];
+        const DANGER_LINE = 100;
+        
+        // Game state
+        let circles = [];
+        let currentCircle = null;
+        let nextCircleSize = 0;
+        let score = 0;
+        let gameOver = false;
+        let mouseX = canvas.width / 2;
+        let useCustomGraphics = false;
+        let customImages = {};
+        
+        // Load custom images
+        function loadCustomImages() {
+            for (let i = 0; i < SIZES.length; i++) {
+                const img = new Image();
+                const num = String(i + 1).padStart(3, '0');
+                img.src = `images/${num}.png`;
+                img.onerror = () => {
+                    console.log(`Custom image ${num}.png not found, using default graphics`);
+                };
+                customImages[i] = img;
+            }
+        }
+        
+        loadCustomImages();
+        
+        class Circle {
+            constructor(x, y, sizeIndex, isPreview = false) {
+                this.x = x;
+                this.y = y;
+                this.sizeIndex = sizeIndex;
+                this.radius = SIZES[sizeIndex];
+                this.color = COLORS[sizeIndex];
+                this.vx = 0;
+                this.vy = 0;
+                this.isPreview = isPreview;
+                this.merged = false;
+                this.spawnTime = Date.now();
+                this.hasFallen = false;
+            }
+            
+            draw() {
+                ctx.save();
+                if (useCustomGraphics && customImages[this.sizeIndex] && customImages[this.sizeIndex].complete) {
+                    ctx.globalAlpha = this.isPreview ? 0.5 : 1;
+                    ctx.drawImage(
+                        customImages[this.sizeIndex],
+                        this.x - this.radius,
+                        this.y - this.radius,
+                        this.radius * 2,
+                        this.radius * 2
+                    );
+                } else {
+                    ctx.globalAlpha = this.isPreview ? 0.5 : 1;
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+            
+            update() {
+                if (this.isPreview) return;
+                
+                this.vy += GRAVITY;
+                this.vx *= FRICTION;
+                this.vy *= FRICTION;
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Track if circle has fallen below danger line
+                if (this.y - this.radius > DANGER_LINE) {
+                    this.hasFallen = true;
+                }
+                
+                // Wall collision
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                    this.vx *= -BOUNCE;
+                }
+                if (this.x + this.radius > canvas.width) {
+                    this.x = canvas.width - this.radius;
+                    this.vx *= -BOUNCE;
+                }
+                
+                // Floor collision - keep balls from going through
+                if (this.y + this.radius >= canvas.height) {
+                    this.y = canvas.height - this.radius;
+                    this.vy *= -BOUNCE;
+                    this.vx *= FRICTION;
+                    
+                    // Stop very small bounces
+                    if (Math.abs(this.vy) < 0.5) {
+                        this.vy = 0;
+                    }
+                }
+            }
+            
+            checkCollision(other) {
+                const dx = other.x - this.x;
+                const dy = other.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const minDist = this.radius + other.radius;
+                
+                if (distance < minDist) {
+                    const angle = Math.atan2(dy, dx);
+                    const targetX = this.x + Math.cos(angle) * minDist;
+                    const targetY = this.y + Math.sin(angle) * minDist;
+                    const ax = (targetX - other.x) * 0.5;
+                    const ay = (targetY - other.y) * 0.5;
+                    
+                    this.vx -= ax;
+                    this.vy -= ay;
+                    other.vx += ax;
+                    other.vy += ay;
+                    
+                    return true;
+                }
+                return false;
+            }
+        }
+        
+        function generateNextCircle() {
+            // Weighted random: favor smaller circles
+            const maxSize = Math.min(4, SIZES.length - 1);
+            nextCircleSize = Math.floor(Math.random() * maxSize);
+            nextSizeEl.textContent = SIZES[nextCircleSize];
+        }
+        
+        function spawnCircle() {
+            if (gameOver) return;
+            
+            currentCircle = new Circle(mouseX, 50, nextCircleSize, true);
+        }
+        
+        function dropCircle() {
+            if (!currentCircle || gameOver) return;
+            
+            currentCircle.isPreview = false;
+            circles.push(currentCircle);
+            currentCircle = null;
+            generateNextCircle();
+            
+            setTimeout(() => {
+                spawnCircle();
+            }, 500);
+        }
+        
+        function checkMerge() {
+            for (let i = 0; i < circles.length; i++) {
+                if (circles[i].merged) continue;
+                
+                for (let j = i + 1; j < circles.length; j++) {
+                    if (circles[j].merged) continue;
+                    
+                    if (circles[i].sizeIndex === circles[j].sizeIndex) {
+                        const dx = circles[j].x - circles[i].x;
+                        const dy = circles[j].y - circles[i].y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        const minDist = circles[i].radius + circles[j].radius;
+                        
+                        // More lenient merging - if they're touching at all
+                        if (distance < minDist * 1.1) {
+                            // Merge!
+                            if (circles[i].sizeIndex < SIZES.length - 1) {
+                                const newX = (circles[i].x + circles[j].x) / 2;
+                                const newY = (circles[i].y + circles[j].y) / 2;
+                                const newCircle = new Circle(newX, newY, circles[i].sizeIndex + 1);
+                                circles.push(newCircle);
+                                
+                                score += SIZES[circles[i].sizeIndex + 1];
+                                scoreEl.textContent = score;
+                            }
+                            
+                            circles[i].merged = true;
+                            circles[j].merged = true;
+                        }
+                    }
+                }
+            }
+            
+            circles = circles.filter(c => !c.merged);
+        }
+        
+        function checkGameOver() {
+            for (let circle of circles) {
+                // Only check circles that have been around for at least 3 seconds
+                // have fallen below the danger line at some point, and risen back up
+                const timeSinceSpawn = Date.now() - circle.spawnTime;
+                if (timeSinceSpawn > 3000 && 
+                    circle.hasFallen &&
+                    circle.y - circle.radius < DANGER_LINE && 
+                    Math.abs(circle.vy) < 0.5 && 
+                    Math.abs(circle.vx) < 0.5) {
+                    gameOver = true;
+                    finalScoreEl.textContent = score;
+                    gameOverEl.classList.add('show');
+                    overlayEl.classList.add('show');
+                    break;
+                }
+            }
+        }
+        
+        function update() {
+            if (!gameOver) {
+                // Update preview circle position
+                if (currentCircle) {
+                    currentCircle.x = mouseX;
+                }
+                
+                for (let i = 0; i < circles.length; i++) {
+                    circles[i].update();
+                    
+                    for (let j = i + 1; j < circles.length; j++) {
+                        circles[i].checkCollision(circles[j]);
+                    }
+                }
+                
+                checkMerge();
+                checkGameOver();
+            }
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw danger line
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, DANGER_LINE);
+            ctx.lineTo(canvas.width, DANGER_LINE);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw circles
+            for (let circle of circles) {
+                circle.draw();
+            }
+            
+            // Draw current circle
+            if (currentCircle) {
+                currentCircle.draw();
+            }
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function resetGame() {
+            circles = [];
+            currentCircle = null;
+            score = 0;
+            gameOver = false;
+            scoreEl.textContent = score;
+            gameOverEl.classList.remove('show');
+            overlayEl.classList.remove('show');
+            generateNextCircle();
+            spawnCircle();
+        }
+        
+        // Event listeners
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = Math.max(SIZES[nextCircleSize], Math.min(canvas.width - SIZES[nextCircleSize], e.clientX - rect.left));
+        });
+        
+        canvas.addEventListener('click', dropCircle);
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            mouseX = Math.max(SIZES[nextCircleSize], Math.min(canvas.width - SIZES[nextCircleSize], touch.clientX - rect.left));
+        });
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            dropCircle();
+        });
+        
+        document.getElementById('reset-btn').addEventListener('click', resetGame);
+        
+        document.getElementById('custom-graphics-btn').addEventListener('click', () => {
+            useCustomGraphics = !useCustomGraphics;
+        });
+        
+        // Initialize game
+        generateNextCircle();
+        spawnCircle();
+        gameLoop();
+    </script>
+</body>
+</html>
