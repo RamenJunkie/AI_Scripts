@@ -1,0 +1,2 @@
+300
+-G -G D D E E D . C C -B -B -A -A -G . D D C C -B -B -A . D D C C -B -B -A . -G -G D D E E D . C C -B -B -A -A -G
