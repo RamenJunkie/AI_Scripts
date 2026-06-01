@@ -8,6 +8,14 @@ Builds a simple website from markdown files in the same folder.  An example of w
 
 A text style game where you play as a Kaiju and destroy things.  Don't tread on your ancestor though.
 
+## TIAI Quest
+
+A simple RPG lite game that is styled after an old game I had created for the TI-85 Calculator
+
+## Ball Merge Game
+
+A web based ball merge game based on the Sukia Fruit Drop game.
+
 ## Tic Tac Toe
 
 A simple web based Tic Tac Toe game.
