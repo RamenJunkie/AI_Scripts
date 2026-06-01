@@ -6,21 +6,21 @@ Builds a simple website from markdown files in the same folder.  An example of w
 
 ## Kaiju Adventure
 
-A text style game where you play as a Kaiju and destroy things.  Don't tread on your ancestor though.
+A text style game where you play as a Kaiju and destroy things.  Don't tread on your ancestor though.  Playable [here](https://lameazoid.com/games/kaiju_adventure/)
 
 ## TIAI Quest
 
-A simple RPG lite game that is styled after an old game I had created for the TI-85 Calculator
+A simple RPG lite game that is styled after an old game I had created for the TI-85 Calculator.  Playable [here](https://lameazoid.com/games/tiai_quest/)
 
 ## Ball Merge Game
 
-A web based ball merge game based on the Sukia Fruit Drop game.
+A web based ball merge game based on the Sukia Fruit Drop game. Playable [here](https://lameazoid.com/games/BallMerge/)
 
 ## Tic Tac Toe
 
-A simple web based Tic Tac Toe game.
+A simple web based Tic Tac Toe game. Playable [here](https://lameazoid.com/games/tictactoe/)
 
 ## Name Slot Machine
 
-Generates randomized 5 letter "words", intended to be modled after the idea presented in the first wpisode of The Amazing Digital Circus when Caine rolled  Pomni's name.  It's also online [here](https://lameazoid.com/games/TADCNamer/).
+Generates randomized 5 letter "words", intended to be modled after the idea presented in the first episode of The Amazing Digital Circus when Caine rolled Pomni's name.  It's also online [here](https://lameazoid.com/games/TADCNamer/).
 
