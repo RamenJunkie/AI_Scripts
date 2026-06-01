@@ -22,5 +22,5 @@ A simple web based Tic Tac Toe game.
 
 ## Name Slot Machine
 
-Generatyes randomized 5 letter "words", intended to be modled after the idea presented in the first wpisode of The Amazing Digital Circus when Caine rolled  Pomni's name.  It's also online [here](https://lameazoid.com/games/TADCNamer/).
+Generates randomized 5 letter "words", intended to be modled after the idea presented in the first wpisode of The Amazing Digital Circus when Caine rolled  Pomni's name.  It's also online [here](https://lameazoid.com/games/TADCNamer/).
 
