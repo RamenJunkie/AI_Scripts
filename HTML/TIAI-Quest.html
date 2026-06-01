@@ -1,0 +1,37 @@
+  }
+}
+
+function endBattle() {
+  enemy = null;
+  document.getElementById('enemy-bar').classList.remove('dragon');
+  setBattleMode(false);
+  setLocation('town');
+  updateUI();
+  renderShop();
+  log(`You return safely to The Town.`, 'system');
+}
+
+function victory() {
+  log(`⚔ Your blade finds its mark! The Dragon Lord staggers...`, 'success');
+  log(`🐉 "Impossible... I cannot be defeated...!" The Dragon Lord crumbles to ash.`, 'loot');
+  log(`✨ THE REALM IS SAVED! YOU ARE A LEGEND! ✨`, 'success');
+  setBattleMode(false);
+  setTimeout(() => {
+    document.getElementById('victory-stats').textContent =
+      `Level ${player.level}  |  Kills: ${player.kills}  |  Days: ${player.days}`;
+    document.getElementById('victory').classList.add('visible');
+  }, 1800);
+}
+
+function gameOver() {
+  setBattleMode(false);
+  const dyingTo = enemy?.isDragon ? ' Slain by the Dragon Lord.' : '';
+  document.getElementById('death-stats').textContent =
+    `Level ${player.level}  |  Kills: ${player.kills}  |  Days: ${player.days}${dyingTo}`;
+  document.getElementById('game-over').classList.add('visible');
+}
+
+startGame();
+</script>
+</body>
+</html>
