@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KAIJU // TERROR FROM THE DEEP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Russo+One&family=VT323&display=swap');
+
+  :root {
+    --red: #ff2020;
+    --orange: #ff6a00;
+    --yellow: #ffe600;
+    --green: #00ff88;
+    --dim-green: #006633;
+    --bg: #0a0800;
+    --surface: #100f00;
+    --border: #332200;
+    --text: #e8d87f;
+    --dim: #665c2a;
+    --white: #fff8d0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.12) 2px,
+      rgba(0,0,0,0.12) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  #header {
+    padding: 10px 16px 6px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+
+  #header h1 {
+    font-family: 'Russo One', sans-serif;
+    font-size: 22px;
+    color: var(--red);
+    text-shadow: 0 0 18px var(--red), 0 0 40px rgba(255,32,32,0.4);
+    letter-spacing: 4px;
+  }
+
+  #header .sub {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    color: var(--dim);
+    letter-spacing: 2px;
+  }
+
+  #stats-bar {
+    display: flex;
+    gap: 24px;
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+  }
+
+  .stat-label { color: var(--dim); }
+  .stat-val { color: var(--yellow); text-shadow: 0 0 8px rgba(255,230,0,0.5); }
+  .stat-val.red { color: var(--red); text-shadow: 0 0 8px rgba(255,32,32,0.5); }
+  .stat-val.orange { color: var(--orange); text-shadow: 0 0 8px rgba(255,106,0,0.5); }
+  .stat-val.green { color: var(--green); }
+
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  #output-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 18px;
+    scroll-behavior: smooth;
+  }
+
+  #output-panel::-webkit-scrollbar { width: 6px; }
+  #output-panel::-webkit-scrollbar-track { background: var(--bg); }
+  #output-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+  #sidebar {
+    width: 220px;
+    border-left: 1px solid var(--border);
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  .sidebar-section h3 {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    color: var(--orange);
+    letter-spacing: 2px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+  }
+
+  .sidebar-section p, .sidebar-section li {
+    font-size: 13px;
+    color: var(--dim);
+    line-height: 1.6;
+    list-style: none;
+  }
+
+  .sidebar-section li::before { content: '> '; color: var(--red); }
+  .sidebar-section li.done { text-decoration: line-through; color: #3a3015; }
+  .sidebar-section li.done::before { color: var(--dim-green); content: '✓ '; }
+
+  #map-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+  }
+
+  .map-cell {
+    aspect-ratio: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--dim);
+    cursor: default;
+    transition: all 0.3s;
+    text-align: center;
+    line-height: 1.1;
+    padding: 2px;
+  }
+
+  .map-cell.current {
+    background: rgba(255,32,32,0.2);
+    border-color: var(--red);
+    color: var(--red);
+    text-shadow: 0 0 6px var(--red);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .map-cell.visited {
+    background: rgba(60,40,0,0.6);
+    color: var(--dim);
+  }
+
+  .map-cell.destroyed {
+    background: rgba(255,32,32,0.08);
+    color: #3a1a1a;
+    border-color: #2a1010;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 6px var(--red); }
+    50% { box-shadow: 0 0 16px var(--red), 0 0 30px rgba(255,32,32,0.3); }
+  }
+
+  .line {
+    margin-bottom: 6px;
+    line-height: 1.55;
+    animation: fadein 0.15s ease;
+  }
+
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+  .line.location {
+    font-family: 'Russo One', sans-serif;
+    font-size: 16px;
+    color: var(--white);
+    margin-top: 14px;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .line.desc { color: var(--text); }
+  .line.action { color: var(--orange); }
+  .line.destroy { color: var(--red); text-shadow: 0 0 8px rgba(255,32,32,0.4); }
+  .line.error { color: #884444; }
+  .line.system { color: var(--dim); font-style: italic; }
+  .line.roar {
+    color: var(--yellow);
+    font-family: 'Russo One', sans-serif;
+    font-size: 18px;
+    text-shadow: 0 0 12px var(--yellow);
+    letter-spacing: 3px;
+  }
+  .line.military { color: #7799ff; }
+  .line.divider {
+    color: var(--border);
+    user-select: none;
+  }
+  .line.good { color: var(--green); }
+  .line.title {
+    font-family: 'VT323', monospace;
+    font-size: 28px;
+    letter-spacing: 3px;
+  }
+
+  #input-area {
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    gap: 10px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  #prompt-label {
+    color: var(--red);
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    text-shadow: 0 0 8px var(--red);
+    white-space: nowrap;
+  }
+
+  #cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--white);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    caret-color: var(--red);
+    text-transform: lowercase;
+  }
+
+  #cmd-input::placeholder { color: var(--border); }
+
+  .hp-bar {
+    display: flex;
+    gap: 2px;
+    margin-top: 4px;
+  }
+  .hp-pip {
+    width: 10px; height: 10px;
+    background: var(--green);
+    border: 1px solid var(--dim-green);
+    transition: all 0.3s;
+  }
+  .hp-pip.empty { background: #1a0f0f; border-color: #330000; }
+  .hp-pip.low { background: var(--red); border-color: #660000; }
+
+  @media (max-width: 600px) {
+    #sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>⚡ KAIJU</h1>
+  <span class="sub">TERROR FROM THE DEEP // TEXT ADVENTURE v1.0</span>
+</div>
+
+<div id="stats-bar">
+  <div class="stat"><span class="stat-label">HP:</span><span class="stat-val green" id="stat-hp">200/200</span></div>
+  <div class="stat"><span class="stat-label">RAGE:</span><span class="stat-val orange" id="stat-rage">0</span></div>
+  <div class="stat"><span class="stat-label">DESTRUCTION:</span><span class="stat-val red" id="stat-dest">$0</span></div>
+  <div class="stat"><span class="stat-label">KILLS:</span><span class="stat-val" id="stat-kills">0</span></div>
+  <div class="stat"><span class="stat-label">LOCATION:</span><span class="stat-val" id="stat-loc">???</span></div>
+</div>
+
+<div id="main">
+  <div id="output-panel"></div>
+  <div id="sidebar">
+    <div class="sidebar-section">
+      <h3>ABILITIES</h3>
+      <ul id="abilities-list">
+        <li>STOMP — crush things</li>
+        <li>ROAR — terrify civilians</li>
+        <li>SWIPE — knock over structures</li>
+        <li>BREATHE — atomic breath</li>
+        <li>THRASH — area devastation</li>
+        <li>GRAB — pick up objects/tanks</li>
+      </ul>
+    </div>
+    <div class="sidebar-section">
+      <h3>MINIMAP</h3>
+      <div id="map-grid"></div>
+    </div>
+    <div class="sidebar-section">
+      <h3>OBJECTIVES</h3>
+      <ul id="objectives-list">
+        <li id="obj-1">Reach downtown</li>
+        <li id="obj-2">Destroy city hall</li>
+        <li id="obj-3">Defeat the military</li>
+        <li id="obj-4">Bring down the bridge</li>
+        <li id="obj-5">Survive 10 turns</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="input-area">
+  <span id="prompt-label">KAIJU &gt;</span>
+  <input type="text" id="cmd-input" placeholder="what do you do?" autocomplete="off" spellcheck="false" />
+</div>
+
+<script>
+// ─── WORLD ───────────────────────────────────────────────────────────────────
+
+const GRID_W = 5, GRID_H = 5;
+
+const LOCATIONS = {
+  // [col, row]
+  harbor:        { x:0, y:4, name:"Harbor", short:"HARBOR",    desc:"You emerged from the black sea here. The docks are a splintered ruin behind you. Cargo containers dot the waterfront like scattered toys.", exits:{n:'industrial', e:'beach'}, structures:['shipping crane','warehouse','cargo ship','fuel depot'], military:false },
+  beach:         { x:1, y:4, name:"Beach",  short:"BEACH",     desc:"Panicked sunbathers sprint in every direction. Umbrellas and beach huts litter the sand. A boardwalk extends northward.", exits:{n:'south_market', w:'harbor', e:'coast_road'}, structures:['boardwalk','beach huts','lifeguard tower','ferris wheel'], military:false },
+  coast_road:    { x:2, y:4, name:"Coast Road", short:"COAST RD",desc:"A coastal highway choked with abandoned cars. People have fled their vehicles and run screaming. The road leads north into the city.", exits:{n:'suburbs', w:'beach'}, structures:['highway overpass','gas station','strip mall','billboard'], military:false },
+  industrial:    { x:0, y:3, name:"Industrial District", short:"INDUST.",desc:"Massive factories and smokestacks. The ground vibrates under your feet. Steam vents hiss uselessly against your scales.", exits:{n:'docks_north', s:'harbor', e:'south_market'}, structures:['factory','power plant','smokestack','rail yard','water tower'], military:false },
+  south_market:  { x:1, y:3, name:"South Market", short:"S.MARKET", desc:"An open-air market district. Stalls and awnings collapse under your shadow. The smell of street food wafts past you.", exits:{n:'downtown', s:'beach', w:'industrial', e:'suburbs'}, structures:['market stalls','parking garage','apartment block','bus depot'], military:true },
+  suburbs:       { x:2, y:3, name:"Suburbs",  short:"SUBURBS",  desc:"Rows of identical houses stretch in every direction. Sprinklers still run in empty yards. A dog barks at you from a distance. At the end of a cul-de-sac stands a small white house.", exits:{n:'east_plaza', s:'coast_road', w:'south_market', e:'stadium'}, structures:['houses','school','church','shopping mall','water tower','white house'], military:false },
+  stadium:       { x:3, y:3, name:"Stadium",  short:"STADIUM",  desc:"A massive sports stadium. The scoreboard still reads HOME 3 - VISITOR 1. 50,000 empty seats await your presence.", exits:{n:'airport', w:'suburbs'}, structures:['stadium','scoreboard','parking structure','team store'], military:true },
+  docks_north:   { x:0, y:2, name:"North Docks", short:"N.DOCKS", desc:"A naval yard. Military ships are anchored here. Spotlights sweep the water — they haven't spotted you yet. Now they have.", exits:{n:'chinatown', s:'industrial', e:'downtown'}, structures:['naval destroyer','submarine dock','military barracks','lighthouse'], military:true },
+  downtown:      { x:1, y:2, name:"Downtown",  short:"DOWNTOWN", desc:"Glass towers and skyscrapers. News helicopters circle overhead. Your reflection shimmers across a hundred windows.", exits:{n:'civic_center', s:'south_market', w:'docks_north', e:'east_plaza'}, structures:['skyscraper','hotel','shopping tower','news station','parking tower'], military:true },
+  east_plaza:    { x:2, y:2, name:"East Plaza", short:"E.PLAZA", desc:"A corporate plaza ringed with glass office towers. Fountains and public art. Now just obstacles.", exits:{n:'tech_district', s:'suburbs', w:'downtown', e:'airport'}, structures:['office tower','fountain','glass atrium','plaza monument'], military:false },
+  airport:       { x:3, y:2, name:"Airport",   short:"AIRPORT",  desc:"Fighter jets scramble from the tarmac. A passenger plane sits abandoned on the runway. The control tower watches you nervously.", exits:{n:'highway', s:'stadium', w:'east_plaza'}, structures:['control tower','terminal','passenger jet','fuel tanks','hangars'], military:true },
+  chinatown:     { x:0, y:1, name:"Chinatown", short:"CHINATOWN",desc:"Neon signs and paper lanterns crumple underfoot. Narrow streets lined with restaurants and shops. Colorful chaos.", exits:{n:'bridge', s:'docks_north', e:'civic_center'}, structures:['neon arch gate','restaurant row','pagoda tower','market building'], military:false },
+  civic_center:  { x:1, y:1, name:"Civic Center", short:"CIVIC CTR",desc:"City Hall stands before you — a proud stone building with columns. Government district. The mayor's last broadcast came from here.", exits:{n:'university', s:'downtown', w:'chinatown', e:'tech_district'}, structures:['city hall','courthouse','government plaza','police HQ','statue'], military:true },
+  tech_district: { x:2, y:1, name:"Tech District", short:"TECH DIST",desc:"Gleaming startup campuses and server farms. Self-driving cars drift in confused circles. Drones buzz uselessly around your head.", exits:{n:'north_park', s:'east_plaza', w:'civic_center', e:'highway'}, structures:['data center','tech campus','server farm','startup HQ','drone depot'], military:false },
+  highway:       { x:3, y:1, name:"Highway Interchange", short:"HIGHWAY", desc:"A massive elevated highway interchange. Multiple levels of concrete roads. Cars dangle off the edges like toys.", exits:{n:'military_base', s:'airport', w:'tech_district'}, structures:['elevated highway','overpass','fuel depot','toll plaza'], military:true },
+  bridge:        { x:0, y:0, name:"Golden Bridge", short:"BRIDGE",  desc:"A massive suspension bridge. One of the city's iconic landmarks. The cables sing as you grip them.", exits:{s:'chinatown', e:'university'}, structures:['bridge span','suspension cables','bridge tower','lighthouse'], military:true },
+  university:    { x:1, y:0, name:"University",  short:"UNIV.",   desc:"Gothic stone buildings and green quads. A telescope dome sits on a hill. Empty classrooms await your curiosity.", exits:{s:'civic_center', w:'bridge', e:'north_park'}, structures:['clock tower','lecture hall','science building','observatory','library'], military:false },
+  north_park:    { x:2, y:0, name:"North Park",  short:"N.PARK",  desc:"A large urban park. Trees snap like matchsticks. A duck pond is now a footprint. Joggers are a distant memory.", exits:{s:'tech_district', w:'university', e:'military_base'}, structures:['park pavilion','duck pond','monument','greenhouse','amphitheater'], military:false },
+  military_base: { x:3, y:0, name:"Military Base", short:"MILIT.BASE",desc:"The last line of defense. Artillery emplacements. Tank columns. Missile batteries. They've been waiting for you.", exits:{s:'highway', w:'north_park'}, structures:['missile battery','tank depot','command bunker','radar array','barracks'], military:true },
+};
+
+// ─── GAME STATE ───────────────────────────────────────────────────────────────
+
+const state = {
+  hp: 200, maxHp: 200,
+  rage: 0,
+  location: 'harbor',
+  destroyed: {},        // loc -> set of destroyed structure names
+  visited: new Set(),
+  turn: 0,
+  militaryDefeated: new Set(),
+  destruction: 0,
+  kills: 0,
+  objectives: { dest:false, hall:false, military:false, bridge:false, survive:false },
+  history: [],
+  commandHistory: [],
+  histIdx: -1,
+  gameOver: false,
+};
+
+const STRUCT_VALUES = {
+  default: 50,
+  skyscraper:500, hotel:400, factory:300, 'power plant':600, 'naval destroyer':450,
+  'city hall':800, 'missile battery':350, 'control tower':200, 'bridge span':1000,
+  'suspension cables':500, 'bridge tower':700, 'passenger jet':300, stadium:600,
+  'data center':400, 'tank depot':350, 'command bunker':500, 'radar array':250,
+  'parking tower':150, 'water tower':100, 'news station':200, 'government plaza':300,
+};
+
+const FLAVOR = {
+  stomp: [
+    "The ground CRACKS and craters under your immense foot.",
+    "A thunderous BOOM echoes across the city as you bring your foot down.",
+    "Your footstep registers 8.2 on the Richter scale.",
+    "The pavement buckles and splinters into a perfect kaiju-shaped crater.",
+    "Car alarms go off for a three-block radius.",
+  ],
+  roar: [
+    "Your roar shatters every window within two miles.",
+    "RAAAAAAWWWWWRRR! Car alarms. Screaming. Beautiful.",
+    "Civilians collapse to their knees, hands over ears.",
+    "Birds flee in every direction. Seismometers register the sound wave.",
+    "Your roar bounces off skyscrapers. The city knows you're here.",
+  ],
+  breathe: [
+    "Atomic energy builds in your chest — FWOOOOOM! Blue-white fire erupts.",
+    "Your radioactive breath scorches a perfect line of devastation.",
+    "Geiger counters across the city spike into the red.",
+    "A glowing beam of destruction lances from your jaws.",
+    "The air ionizes around you as superheated plasma erupts forth.",
+  ],
+  military_attack: [
+    "Artillery shells plink off your scales like pebbles.",
+    "A missile detonates against your chest. You barely feel it.",
+    "Tanks form a line and open fire. Their shells tickle.",
+    "Fighter jets strafe your back. You shrug them off.",
+    "Helicopter gunships circle. You watch them lazily.",
+    "Soldiers scramble in every direction. Brave, but futile.",
+  ],
+  flee: [
+    "Civilians scatter, screaming, in every direction.",
+    "A distant car alarm wails. Somewhere, a dog howls.",
+    "News helicopters scramble to follow your movement.",
+    "Emergency sirens begin to wail.",
+    "The city's emergency broadcast system crackles to life.",
+  ],
+};
+
+const MILITARY_LINES = [
+  "⚡ MILITARY OPENS FIRE! Artillery and missiles impact your hide.",
+  "⚡ TANK BATTALION advances and fires a concentrated salvo.",
+  "⚡ AIR STRIKE! Fighter jets drop ordnance on your position.",
+  "⚡ NAVAL GUNS from the harbor open fire. The shells sting.",
+  "⚡ MISSILE BATTERY FIRES! A cluster of warheads detonates against your scales.",
+];
+
+// ─── MAP INIT ────────────────────────────────────────────────────────────────
+
+function initMap() {
+  const grid = document.getElementById('map-grid');
+  grid.innerHTML = '';
+  // Build 5x5 grid
+  const cells = {};
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const cell = document.createElement('div');
+      cell.className = 'map-cell';
+      cell.id = `cell-${x}-${y}`;
+      cell.textContent = '';
+      grid.appendChild(cell);
+      cells[`${x}-${y}`] = cell;
+    }
+  }
+  // Label known locations
+  for (const [key, loc] of Object.entries(LOCATIONS)) {
+    const cell = cells[`${loc.x}-${loc.y}`];
+    if (cell) cell.dataset.key = key;
+  }
+  updateMap();
+}
+
+function updateMap() {
+  for (const [key, loc] of Object.entries(LOCATIONS)) {
+    const cell = document.getElementById(`cell-${loc.x}-${loc.y}`);
+    if (!cell) continue;
+    cell.className = 'map-cell';
+    cell.textContent = '';
+    if (key === state.location) {
+      cell.classList.add('current');
+      cell.textContent = '👾';
+    } else if (state.destroyed[key] && Object.keys(state.destroyed[key] || {}).length >= (LOCATIONS[key].structures || []).length) {
+      cell.classList.add('destroyed');
+      cell.textContent = '💀';
+    } else if (state.visited.has(key)) {
+      cell.classList.add('visited');
+      cell.textContent = loc.short.slice(0,4);
+    }
+  }
+}
+
+// ─── OUTPUT ──────────────────────────────────────────────────────────────────
+
+function print(text, cls='desc', delay=0) {
+  const panel = document.getElementById('output-panel');
+  const line = document.createElement('div');
+  line.className = 'line ' + cls;
+  line.innerHTML = text;
+  if (delay) line.style.animationDelay = delay + 'ms';
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function divider() { print('─'.repeat(55), 'divider'); }
+
+function rnd(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+
+// ─── STATS ───────────────────────────────────────────────────────────────────
+
+function updateStats() {
+  const loc = LOCATIONS[state.location];
+  document.getElementById('stat-hp').textContent = `${state.hp}/${state.maxHp}`;
+  document.getElementById('stat-hp').className = 'stat-val ' + (state.hp > 100 ? 'green' : state.hp > 50 ? 'orange' : 'red');
+  document.getElementById('stat-rage').textContent = state.rage;
+  document.getElementById('stat-dest').textContent = '$' + state.destruction.toLocaleString() + 'M';
+  document.getElementById('stat-kills').textContent = state.kills;
+  document.getElementById('stat-loc').textContent = loc ? loc.short : '???';
+
+  // HP pips
+  // (no pip bar in stats — color is enough)
+
+  // objectives
+  checkObjectives();
+}
+
+function checkObjectives() {
+  // Reach downtown
+  if (!state.objectives.dest && state.visited.has('downtown')) {
+    state.objectives.dest = true;
+    document.getElementById('obj-1').classList.add('done');
+  }
+  // Destroy city hall
+  if (!state.objectives.hall && state.destroyed['civic_center'] && state.destroyed['civic_center']['city hall']) {
+    state.objectives.hall = true;
+    document.getElementById('obj-2').classList.add('done');
+    print('🏆 OBJECTIVE COMPLETE: City Hall has fallen!', 'good');
+  }
+  // Military defeated (5+ military zones cleared)
+  if (!state.objectives.military && state.militaryDefeated.size >= 5) {
+    state.objectives.military = true;
+    document.getElementById('obj-3').classList.add('done');
+    print('🏆 OBJECTIVE COMPLETE: Military resistance crushed!', 'good');
+  }
+  // Bridge
+  if (!state.objectives.bridge && state.destroyed['bridge'] && state.destroyed['bridge']['bridge span']) {
+    state.objectives.bridge = true;
+    document.getElementById('obj-4').classList.add('done');
+    print('🏆 OBJECTIVE COMPLETE: The bridge has collapsed!', 'good');
+  }
+  // Survive 10 turns
+  if (!state.objectives.survive && state.turn >= 10) {
+    state.objectives.survive = true;
+    document.getElementById('obj-5').classList.add('done');
+    print('🏆 OBJECTIVE COMPLETE: 10 turns survived!', 'good');
+  }
+}
+
+// ─── DESCRIBE LOCATION ───────────────────────────────────────────────────────
+
+function describeLocation(verbose=true) {
+  const loc = LOCATIONS[state.location];
+  if (!loc) return;
+  state.visited.add(state.location);
+
+  divider();
+  print(loc.name.toUpperCase(), 'location');
+  print(loc.desc, 'desc');
+
+  // Structures
+  const remaining = getRemainingStructures();
+  if (remaining.length > 0) {
+    print(`You see: ${remaining.join(', ')}.`, 'desc');
+  } else {
+    print('Nothing here remains standing. Pure rubble.', 'system');
+  }
+
+  // Exits
+  const exits = Object.keys(loc.exits).map(d => `${d.toUpperCase()} → ${LOCATIONS[loc.exits[d]].name}`);
+  print(`Exits: ${exits.join(' | ')}`, 'system');
+
+  // Military
+  if (loc.military && !state.militaryDefeated.has(state.location)) {
+    print('⚠️  Military forces are present and hostile.', 'military');
+  }
+
+  updateMap();
+}
+
+function getRemainingStructures() {
+  const loc = LOCATIONS[state.location];
+  const destroyed = state.destroyed[state.location] || {};
+  return (loc.structures || []).filter(s => !destroyed[s]);
+}
+
+// ─── MOVEMENT ────────────────────────────────────────────────────────────────
+
+function move(dir) {
+  const loc = LOCATIONS[state.location];
+  const dest = loc.exits[dir];
+  if (!dest) {
+    print(`You cannot go ${dir.toUpperCase()} from here. There is only ocean, or impassable terrain.`, 'error');
+    return;
+  }
+  const destLoc = LOCATIONS[dest];
+  print(`You lumber ${dir.toUpperCase()}, each step leaving a crater. → ${destLoc.name.toUpperCase()}`, 'action');
+  print(rnd(FLAVOR.flee), 'system');
+  state.location = dest;
+  state.turn++;
+  doMilitaryTurn();
+  describeLocation();
+  updateStats();
+}
+
+// ─── DESTRUCTION ─────────────────────────────────────────────────────────────
+
+function grueEnding() {
+  state.gameOver = true;
+  divider();
+  print('You reach down toward the small white house at the end of the cul-de-sac.', 'desc');
+  print('Something feels... wrong.', 'system');
+  print('The front door is open. A faint light flickers inside.', 'desc');
+  print('You peer through the window. The mailbox reads: ZORK.', 'desc');
+  print('', 'desc');
+  print('A darkness emanates from within — older than you, older than the city.', 'desc');
+  print('Older than the ocean you crawled from.', 'desc');
+  print('', 'desc');
+  print('It is pitch black.', 'system');
+  print('', 'desc');
+  print('YOU ARE LIKELY TO BE EATEN BY A GRUE.', 'roar');
+  print('', 'desc');
+  print('...', 'system');
+  print('', 'desc');
+  print('The grue does not care that you are 300 feet tall.', 'desc');
+  print('The grue does not care about your atomic breath.', 'desc');
+  print('The grue does not care about your rage meter.', 'desc');
+  print('', 'desc');
+  print('*  *  *', 'divider');
+  print('', 'desc');
+  print('YOU HAVE BEEN EATEN BY A GRUE.', 'destroy');
+  print('', 'desc');
+  print('The city rebuilds. No one speaks of the Kaiju\'s final moments.', 'system');
+  print('A small white house still stands, undisturbed, in the suburbs.', 'system');
+  print('It always will.', 'system');
+  divider();
+  print('Type RESTART to play again. Perhaps avoid the white house this time.', 'system');
+}
+
+function destroyStructure(name) {
+  // EASTER EGG: the white house
+  if (name.toLowerCase().includes('white house') || name.toLowerCase() === 'white') {
+    if (state.location === 'suburbs') {
+      grueEnding();
+      return false;
+    }
+  }
+
+  const remaining = getRemainingStructures();
+  const match = remaining.find(s => s.toLowerCase().includes(name.toLowerCase()));
+  if (!match) {
+    // try full list
+    const full = (LOCATIONS[state.location].structures || []);
+    const alreadyGone = full.find(s => s.toLowerCase().includes(name.toLowerCase()));
+    if (alreadyGone) {
+      print(`The ${alreadyGone} is already rubble. Nothing left to destroy.`, 'system');
+    } else {
+      print(`There is no ${name} here.`, 'error');
+    }
+    return false;
+  }
+
+  if (!state.destroyed[state.location]) state.destroyed[state.location] = {};
+  state.destroyed[state.location][match] = true;
+
+  const value = STRUCT_VALUES[match] || STRUCT_VALUES.default;
+  state.destruction += value;
+
+  // Rage: capped at 100
+  state.rage = Math.min(100, state.rage + 10);
+  state.turn++;
+
+  // Military response if present
+  doMilitaryTurn();
+
+  // Check if location fully cleared
+  const remaining2 = getRemainingStructures();
+  if (remaining2.length === 0 && LOCATIONS[state.location].military) {
+    state.militaryDefeated.add(state.location);
+  }
+
+  updateStats();
+  return match;
+}
+
+function doMilitaryTurn() {
+  const loc = LOCATIONS[state.location];
+  if (loc && loc.military && !state.militaryDefeated.has(state.location)) {
+    const dmg = Math.floor(Math.random()*15) + 5;
+    state.hp = Math.max(0, state.hp - dmg);
+    print(rnd(MILITARY_LINES), 'military');
+    print(`You take ${dmg} damage from military fire. HP: ${state.hp}/${state.maxHp}`, 'error');
+    state.kills += Math.floor(Math.random()*10) + 5;
+
+    if (state.hp <= 0) {
+      gameOver(false);
+    }
+  }
+}
+
+// ─── COMMANDS ────────────────────────────────────────────────────────────────
+
+function handleCommand(raw) {
+  if (state.gameOver) return;
+
+  const input = raw.trim().toLowerCase();
+  if (!input) return;
+
+  state.commandHistory.unshift(raw);
+  state.histIdx = -1;
+
+  print(`> ${raw}`, 'system');
+
+  const words = input.split(/\s+/);
+  const verb = words[0];
+  const rest = words.slice(1).join(' ');
+
+  // MOVEMENT
+  if (['n','north'].includes(verb)) { move('n'); return; }
+  if (['s','south'].includes(verb)) { move('s'); return; }
+  if (['e','east'].includes(verb)) { move('e'); return; }
+  if (['w','west'].includes(verb)) { move('w'); return; }
+  if (verb === 'go' && rest) { move(rest[0]); return; }
+
+  // LOOK
+  if (['look','l','examine','survey','observe'].includes(verb)) {
+    describeLocation(true);
+    return;
+  }
+
+  // STOMP
+  if (verb === 'stomp') {
+    if (!rest) {
+      // stomp general area
+      print(rnd(FLAVOR.stomp), 'action');
+      const rem = getRemainingStructures();
+      if (rem.length > 0) {
+        const target = rnd(rem);
+        const match = destroyStructure(target);
+        if (match) {
+          print(`Your massive foot OBLITERATES the ${match}! It is gone. (+$${(STRUCT_VALUES[match]||50)}M damage)`, 'destroy');
+        }
+      } else {
+        print('You stomp the rubble further into the earth. Satisfying.', 'action');
+        state.turn++;
+        doMilitaryTurn();
+        updateStats();
+      }
+    } else {
+      print(rnd(FLAVOR.stomp), 'action');
+      const match = destroyStructure(rest);
+      if (match) print(`You STOMP the ${match} into oblivion! (+$${(STRUCT_VALUES[match]||50)}M damage)`, 'destroy');
+    }
+    return;
+  }
+
+  // SWIPE / SMASH / DESTROY / DEMOLISH / CRUSH / HIT / PUNCH / ATTACK
+  if (['swipe','smash','destroy','demolish','crush','hit','punch','attack','wreck','tear'].includes(verb)) {
+    if (!rest) {
+      print(`What do you want to ${verb}? (or just STOMP for random destruction)`, 'error');
+      return;
+    }
+    const match = destroyStructure(rest);
+    if (match) {
+      const msgs = [
+        `You ${verb} the ${match} with devastating force! It crumbles. (+$${(STRUCT_VALUES[match]||50)}M damage)`,
+        `The ${match} is no match for your raw power. DESTROYED. (+$${(STRUCT_VALUES[match]||50)}M damage)`,
+        `You reduce the ${match} to smoking rubble. (+$${(STRUCT_VALUES[match]||50)}M damage)`,
+      ];
+      print(rnd(msgs), 'destroy');
+    }
+    return;
+  }
+
+  // ROAR
+  if (['roar','scream','yell','bellow'].includes(verb)) {
+    print(rnd(FLAVOR.roar), 'roar');
+    print('RRAAAAAAWWWWWWRRRR!!!', 'roar');
+    state.rage = Math.min(100, state.rage + 5);
+    state.turn++;
+    doMilitaryTurn();
+    updateStats();
+    return;
+  }
+
+  // BREATHE / ATOMIC / FIRE / BLAST
+  if (['breathe','atomic','blast','fire','beam'].includes(verb)) {
+    if (state.rage < 30) {
+      print(`You need at least 30 RAGE to use atomic breath. Current rage: ${state.rage}.`, 'error');
+      print('Try destroying things to build your rage.', 'system');
+      return;
+    }
+    print(rnd(FLAVOR.breathe), 'action');
+    state.rage = Math.max(0, state.rage - 30);
+    const rem = getRemainingStructures();
+    if (rem.length >= 2) {
+      const targets = [rnd(rem)];
+      const rem2 = rem.filter(r => r !== targets[0]);
+      if (rem2.length > 0) targets.push(rnd(rem2));
+      targets.forEach(t => {
+        state.destroyed[state.location] = state.destroyed[state.location] || {};
+        state.destroyed[state.location][t] = true;
+        state.destruction += (STRUCT_VALUES[t] || 50);
+      });
+      state.kills += Math.floor(Math.random()*30)+10;
+      print(`Your atomic breath INCINERATES: ${targets.join(' and ')}! (+$${targets.reduce((a,t)=>a+(STRUCT_VALUES[t]||50),0)}M damage)`, 'destroy');
+    } else if (rem.length === 1) {
+      const t = rem[0];
+      state.destroyed[state.location] = state.destroyed[state.location] || {};
+      state.destroyed[state.location][t] = true;
+      state.destruction += (STRUCT_VALUES[t]||50);
+      print(`Atomic breath vaporizes the ${t}! (+$${STRUCT_VALUES[t]||50}M damage)`, 'destroy');
+    } else {
+      print('Your atomic breath scorches the rubble. Nothing left to burn.', 'action');
+    }
+    state.turn++;
+    doMilitaryTurn();
+    updateStats();
+    return;
+  }
+
+  // THRASH
+  if (['thrash','rampage','rage','berserk'].includes(verb)) {
+    if (state.rage < 50) {
+      print(`You need 50 RAGE to THRASH. Current: ${state.rage}.`, 'error');
+      return;
+    }
+    print('You enter a DEVASTATING RAMPAGE! Your tail sweeps entire city blocks!', 'roar');
+    state.rage = Math.max(0, state.rage - 50);
+    const rem = [...getRemainingStructures()];
+    const toDestroy = rem.slice(0, 3);
+    let total = 0;
+    toDestroy.forEach(t => {
+      state.destroyed[state.location] = state.destroyed[state.location] || {};
+      state.destroyed[state.location][t] = true;
+      total += (STRUCT_VALUES[t]||50);
+    });
+    state.destruction += total;
+    state.kills += Math.floor(Math.random()*50)+20;
+    if (toDestroy.length > 0) {
+      print(`THRASH destroys: ${toDestroy.join(', ')}! (+$${total}M damage)`, 'destroy');
+    } else {
+      print('Nothing left to thrash. Glorious ruin surrounds you.', 'action');
+    }
+    state.turn++;
+    doMilitaryTurn();
+    updateStats();
+    return;
+  }
+
+  // GRAB
+  if (['grab','pick','lift','throw'].includes(verb)) {
+    const rem = getRemainingStructures();
+    if (rem.length === 0) {
+      print('There is nothing to grab here but dust.', 'error');
+      return;
+    }
+    const target = rest ? rem.find(r=>r.includes(rest)) : rnd(rem);
+    if (!target) { print(`No ${rest} to grab here.`, 'error'); return; }
+    state.destroyed[state.location] = state.destroyed[state.location] || {};
+    state.destroyed[state.location][target] = true;
+    state.destruction += (STRUCT_VALUES[target]||50);
+    state.kills += Math.floor(Math.random()*15)+5;
+    const throws = [
+      `You hurl the ${target} three blocks away. It detonates against another building.`,
+      `You grab the ${target} and FLING it at a military convoy. BOOM.`,
+      `The ${target} becomes a projectile. Somewhere distant, something explodes.`,
+    ];
+    print(rnd(throws), 'destroy');
+    print(`(+$${STRUCT_VALUES[target]||50}M damage)`, 'action');
+    state.turn++;
+    doMilitaryTurn();
+    updateStats();
+    return;
+  }
+
+  // HEAL / REST
+  if (['heal','rest','regenerate','regen'].includes(verb)) {
+    if (state.hp >= state.maxHp) {
+      print('You are already at full health. You radiate power.', 'system');
+      return;
+    }
+    const healed = Math.floor(Math.random()*20)+10;
+    state.hp = Math.min(state.maxHp, state.hp + healed);
+    print(`Your regeneration kicks in. +${healed} HP. (${state.hp}/${state.maxHp})`, 'good');
+    state.turn++;
+    doMilitaryTurn();
+    updateStats();
+    return;
+  }
+
+  // INVENTORY / STATUS
+  if (['status','stats','i','inv','inventory'].includes(verb)) {
+    print(`HP: ${state.hp}/${state.maxHp} | RAGE: ${state.rage} | TURN: ${state.turn}`, 'system');
+    print(`Destruction: $${state.destruction.toLocaleString()}M | Casualties: ~${state.kills.toLocaleString()}`, 'system');
+    const obj = Object.values(state.objectives).filter(Boolean).length;
+    print(`Objectives complete: ${obj}/5`, 'system');
+    return;
+  }
+
+  // HELP
+  if (['help','?','commands'].includes(verb)) {
+    divider();
+    print('KAIJU COMMAND REFERENCE', 'roar');
+    print('MOVEMENT: N / S / E / W', 'system');
+    print('ACTIONS:', 'system');
+    print('  LOOK — survey current location', 'desc');
+    print('  STOMP [target] — crush things underfoot', 'desc');
+    print('  SMASH/DESTROY/CRUSH [target] — focused destruction', 'desc');
+    print('  ROAR — terrify civilians, build rage', 'desc');
+    print('  BREATHE/BLAST — atomic breath (costs 30 rage)', 'desc');
+    print('  THRASH/RAMPAGE — area devastation (costs 50 rage)', 'desc');
+    print('  GRAB/THROW [target] — hurl objects as weapons', 'desc');
+    print('  HEAL/REST — regenerate HP', 'desc');
+    print('  STATUS — check your stats', 'desc');
+    print('Build RAGE by destroying things and roaring.', 'system');
+    divider();
+    return;
+  }
+
+  // SCORE
+  if (['score','points'].includes(verb)) {
+    const score = state.destruction + (state.kills * 10) + (state.turn * 5);
+    print(`SCORE: ${score.toLocaleString()} points`, 'roar');
+    print(`  Destruction: $${state.destruction}M × 1 = ${state.destruction}`, 'system');
+    print(`  Casualties: ${state.kills} × 10 = ${state.kills*10}`, 'system');
+    print(`  Turns survived: ${state.turn} × 5 = ${state.turn*5}`, 'system');
+    return;
+  }
+
+  // Unknown
+  print(`You attempt to "${raw}" but your enormous limbs are not built for subtlety.`, 'error');
+  print('Try: STOMP, SMASH, ROAR, BREATHE, THRASH, GRAB, LOOK, HELP, or a direction.', 'system');
+}
+
+// ─── GAME OVER ────────────────────────────────────────────────────────────────
+
+function gameOver(won) {
+  state.gameOver = true;
+  divider();
+  if (!won) {
+    print('╔══════════════════════════════════╗', 'destroy');
+    print('║        KAIJU DEFEATED            ║', 'destroy');
+    print('╚══════════════════════════════════╝', 'destroy');
+    print('The military\'s relentless assault has finally brought you down.', 'desc');
+    print('You sink beneath the waves, trailing radioactive ichor.', 'desc');
+    print('The city begins to rebuild. But everyone knows you\'ll return...', 'system');
+  } else {
+    print('╔══════════════════════════════════╗', 'roar');
+    print('║     TOTAL CITY ANNIHILATION      ║', 'roar');
+    print('╚══════════════════════════════════╝', 'roar');
+    print('The city lies in smoldering ruins. All resistance crushed.', 'destroy');
+    print('You roar in triumph and return to the depths of the ocean.', 'desc');
+    print('Humanity will fear your name for a thousand years.', 'system');
+  }
+  const score = state.destruction + (state.kills * 10) + (state.turn * 5);
+  print(`FINAL SCORE: ${score.toLocaleString()} | Destruction: $${state.destruction}M | Casualties: ~${state.kills.toLocaleString()}`, 'roar');
+  print('Type RESTART to play again.', 'system');
+}
+
+// ─── INTRO ────────────────────────────────────────────────────────────────────
+
+function intro() {
+  print('', 'desc');
+  print('╔══════════════════════════════════════════════════════╗', 'roar');
+  print('║                                                      ║', 'roar');
+  print('║   ██╗  ██╗ █████╗ ██╗     ██╗██╗   ██╗             ║', 'roar');
+  print('║   ██║ ██╔╝██╔══██╗██║     ██║██║   ██║             ║', 'roar');
+  print('║   █████╔╝ ███████║██║     ██║██║   ██║             ║', 'roar');
+  print('║   ██╔═██╗ ██╔══██║██║██   ██║██║   ██║             ║', 'roar');
+  print('║   ██║  ██╗██║  ██║███████╗██║╚██████╔╝             ║', 'roar');
+  print('║   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝ ╚═════╝              ║', 'roar');
+  print('║                                                      ║', 'roar');
+  print('║         T E R R O R   F R O M   T H E   D E E P    ║', 'roar');
+  print('╚══════════════════════════════════════════════════════╝', 'roar');
+  print('', 'desc');
+  print('The ocean floor cracks. The Richter scale breaks. YOU rise.', 'desc');
+  print('A city of 4 million people has no idea what is coming.', 'desc');
+  print('They will know your name — if only in terrified screams.', 'desc');
+  print('', 'desc');
+  print('TYPE "HELP" for commands. TYPE "LOOK" to survey your surroundings.', 'system');
+  print('BUILD RAGE by destroying things and roaring. Spend it on BREATHE or THRASH.', 'system');
+  print('Survive the military. Complete all 5 objectives for a perfect run.', 'system');
+  divider();
+  describeLocation();
+}
+
+// ─── INPUT ────────────────────────────────────────────────────────────────────
+
+const input = document.getElementById('cmd-input');
+
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const val = input.value;
+    input.value = '';
+    if (val.trim().toLowerCase() === 'restart') {
+      location.reload();
+      return;
+    }
+    handleCommand(val);
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    state.histIdx = Math.min(state.histIdx+1, state.commandHistory.length-1);
+    input.value = state.commandHistory[state.histIdx] || '';
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    state.histIdx = Math.max(state.histIdx-1, -1);
+    input.value = state.histIdx >= 0 ? state.commandHistory[state.histIdx] : '';
+  }
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+
+initMap();
+intro();
+updateStats();
+input.focus();
+document.addEventListener('click', () => input.focus());
+</script>
+</body>
+</html>

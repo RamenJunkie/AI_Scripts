@@ -1,0 +1,37 @@
+            // 1 in 20 chance for easter egg
+            const isEasterEgg = Math.random() < 0.05;
+            const result = isEasterEgg ? 'XDDCC' : generateRandomName();
+
+            console.log('Result:', result); // Debug log
+
+            // Spin each reel with increasing duration
+            reels.forEach((num, index) => {
+                const duration = 2000 + (index * 400);
+                spinReel(num, result[index], duration);
+            });
+
+
+
+            setTimeout(() => {
+                spinning = false;
+            }, 4000);
+        }
+
+        function generateRandomName() {
+            let name = '';
+            for (let i = 0; i < 5; i++) {
+                name += alphabet[Math.floor(Math.random() * alphabet.length)];
+            }
+            return name;
+        }
+
+        document.getElementById('armContainer').addEventListener('click', pullArm);
+
+        // Initialize display to show 5 A's
+        reels.forEach(num => {
+            const reelContent = document.querySelector(`#reel${num} .reel-content`);
+            reelContent.style.transform = 'translateY(0px)';
+        });
+    </script>
+</body>
+</html>
