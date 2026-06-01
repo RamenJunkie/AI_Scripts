@@ -4,6 +4,10 @@
 
 Builds a simple website from markdown files in the same folder.  An example of what it looks like in action can be found [here](https://lameazoid.com/Garden/).  Can be styled using CSS.
 
+## Kaiju Adventure
+
+A text style game where you play as a Kaiju and destroy things.  Don't tread on your ancestor though.
+
 ## Tic Tac Toe
 
 A simple web based Tic Tac Toe game.
