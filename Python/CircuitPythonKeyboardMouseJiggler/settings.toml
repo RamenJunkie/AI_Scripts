@@ -1,0 +1,10 @@
+CIRCUITPY_WIFI_SSID = ""
+CIRCUITPY_WIFI_PASSWORD = ""
+
+# Optional: set a static IP instead of DHCP. Leave STATIC_IP blank/absent
+# to just use DHCP as normal. If you set STATIC_IP, you must also set
+# STATIC_GATEWAY. STATIC_NETMASK defaults to 255.255.255.0 if omitted.
+# STATIC_IP = ""
+# STATIC_NETMASK = ""
+# STATIC_GATEWAY = ""
+# STATIC_DNS = ""
